@@ -2,10 +2,13 @@ package states;
 
 import flixel.FlxObject;
 import flixel.addons.transition.FlxTransitionableState;
-import flixel.effects.FlxFlicker;
 import lime.app.Application;
 import states.editors.MasterEditorMenu;
 import options.OptionsState;
+import flixel.tweens.FlxEase;
+import flixel.tweens.FlxTween;
+import flixel.util.FlxTimer;
+import haxe.Json;
 
 class MainMenuState extends MusicBeatState
 {
@@ -20,8 +23,11 @@ class MainMenuState extends MusicBeatState
 		'options'
 	];
 	
-	var magenta:FlxSprite;
+	var bg:FlxSprite;
 	var camFollow:FlxObject;
+	var blackBars:FlxSprite;
+	
+	var sideCharacters:Array<FlxSprite> = [];
 	
 	override function create()
 	{
@@ -38,9 +44,7 @@ class MainMenuState extends MusicBeatState
 		transOut = FlxTransitionableState.defaultTransOut;
 		persistentUpdate = persistentDraw = true;
 		
-		var yScroll:Float = Math.max(0.25 - (0.05 * (optionShit.length - 4)), 0.1);
-		
-		var bg:FlxSprite = new FlxSprite(-80).loadGraphic(Paths.image('menuBG'));
+		bg = new FlxSprite(-80).loadGraphic(Paths.image('menuBG'));
 		bg.antialiasing = ClientPrefs.data.antialiasing;
 		bg.scrollFactor.set(0, 0);
 		bg.setGraphicSize(Std.int(bg.width * 1.175));
@@ -50,16 +54,6 @@ class MainMenuState extends MusicBeatState
 		
 		camFollow = new FlxObject(0, 0, 1, 1);
 		add(camFollow);
-		
-		magenta = new FlxSprite(-80).loadGraphic(Paths.image('menuDesat'));
-		magenta.antialiasing = ClientPrefs.data.antialiasing;
-		magenta.scrollFactor.set(0, 0);
-		magenta.setGraphicSize(Std.int(magenta.width * 1.175));
-		magenta.updateHitbox();
-		magenta.screenCenter();
-		magenta.visible = false;
-		magenta.color = 0xFFfd719b;
-		add(magenta);
 		
 		menuItems = new FlxTypedGroup<FlxSprite>();
 		add(menuItems);
@@ -73,13 +67,11 @@ class MainMenuState extends MusicBeatState
 			menuItem.animation.addByPrefix('idle', optionShit[i] + " basic", 24);
 			menuItem.animation.addByPrefix('selected', optionShit[i] + " white", 24);
 			menuItem.animation.play('idle');
+			menuItem.scale.set(0.8, 0.8);
+			menuItem.updateHitbox();
 			menuItems.add(menuItem);
 			
-			var scr:Float = (optionShit.length - 4) * 0.135;
-			if (optionShit.length < 6)
-				scr = 0;
-			menuItem.scrollFactor.set(0, scr);
-			menuItem.updateHitbox();
+			menuItem.scrollFactor.set(0, 0);
 			menuItem.screenCenter(X);
 		}
 		
@@ -92,6 +84,13 @@ class MainMenuState extends MusicBeatState
 		fnfVer.scrollFactor.set();
 		fnfVer.setFormat("VCR OSD Mono", 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		add(fnfVer);
+		
+		loadSideCharacters();
+		
+		blackBars = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+		blackBars.alpha = 0;
+		blackBars.scrollFactor.set();
+		add(blackBars);
 		
 		changeItem();
 		
@@ -112,7 +111,142 @@ class MainMenuState extends MusicBeatState
 		FlxG.camera.follow(camFollow, null, 9);
 	}
 	
+	function loadSideCharacters()
+	{
+		var rawJson:String = null;
+		
+		try
+		{
+			if (FileSystem.exists(Paths.getPath('images/main_characters.json', TEXT)))
+			{
+				rawJson = File.getContent(Paths.getPath('images/main_characters.json', TEXT));
+			}
+		}
+		catch(e:Dynamic)
+		{
+			trace('No main_characters.json found, skipping side characters');
+		}
+		
+		if (rawJson == null)
+		{
+			try
+			{
+				if (Paths.fileExists('images/main_characters.json', TEXT))
+				{
+					rawJson = Paths.getContent('images/main_characters.json');
+				}
+			}
+			catch(e:Dynamic)
+			{
+				trace('No main_characters.json found in images folder');
+			}
+		}
+		
+		if (rawJson != null && rawJson.length > 0)
+		{
+			try
+			{
+				var config:Dynamic = Json.parse(rawJson);
+				for (side in ['left', 'right'])
+				{
+					if (Reflect.hasField(config, side))
+					{
+						var sideConfig = Reflect.field(config, side);
+						var characters:Array<Dynamic> = sideConfig.characters;
+						if (characters != null && characters.length > 0)
+						{
+							var randomIndex:Int = FlxG.random.int(0, characters.length - 1);
+							var selected = characters[randomIndex];
+							createSideCharacter(side, selected, sideConfig);
+						}
+					}
+				}
+			}
+			catch(e:Dynamic)
+			{
+				trace('Error parsing main_characters.json: ' + e);
+			}
+		}
+	}
+	
+	function createSideCharacter(side:String, charData:Dynamic, config:Dynamic)
+	{
+		var path:String = charData.path;
+		var hasAnimation:Bool = charData.hasAnimation == true;
+		var offsetX:Float = config.offsetX != null ? config.offsetX : 0;
+		var offsetY:Float = config.offsetY != null ? config.offsetY : 0;
+		var scaleX:Float = config.scaleX != null ? config.scaleX : 1;
+		var scaleY:Float = config.scaleY != null ? config.scaleY : 1;
+		var fps:Int = config.fps != null ? config.fps : 24;
+		var animationName:String = charData.animationName != null ? charData.animationName : 'idle';
+		
+		var sprite:FlxSprite = new FlxSprite();
+		sprite.antialiasing = ClientPrefs.data.antialiasing;
+		
+		try
+		{
+			if (hasAnimation)
+			{
+				sprite.frames = Paths.getSparrowAtlas(path);
+				sprite.animation.addByPrefix('idle', animationName, fps);
+				sprite.animation.play('idle');
+			}
+			else
+			{
+				sprite.loadGraphic(Paths.image(path));
+			}
+		}
+		catch(e:Dynamic)
+		{
+			trace('Failed to load side character: ' + path);
+			return;
+		}
+		
+		sprite.scale.set(scaleX, scaleY);
+		sprite.updateHitbox();
+		
+		var startX:Float = 0;
+		var endX:Float = 0;
+		
+		if (side == 'left')
+		{
+			startX = -sprite.width - offsetX;
+			endX = offsetX;
+		}
+		else
+		{
+			startX = FlxG.width + sprite.width + offsetX;
+			endX = FlxG.width - sprite.width - offsetX;
+		}
+		
+		sprite.x = startX;
+		sprite.y = offsetY;
+		
+		add(sprite);
+		
+		var delay:Float = config.delay != null ? config.delay : 0;
+		var duration:Float = config.duration != null ? config.duration : 0.8;
+		
+		new FlxTimer().start(delay, function(tmr:FlxTimer) {
+			FlxTween.tween(sprite, {x: endX}, duration, {
+				ease: FlxEase.backOut,
+				onComplete: function(twn:FlxTween) {
+					if (config.loop != null && config.loop == true)
+					{
+						new FlxTimer().start(config.loopDelay != null ? config.loopDelay : 3, function(loopTimer:FlxTimer) {
+							sprite.x = startX;
+							FlxTween.tween(sprite, {x: endX}, duration, {ease: FlxEase.backOut});
+						});
+					}
+				}
+			});
+		});
+		
+		sideCharacters.push(sprite);
+	}
+	
 	var selectedSomethin:Bool = false;
+	var hoverTweens:Array<FlxTween> = [];
 	
 	override function update(elapsed:Float)
 	{
@@ -125,6 +259,27 @@ class MainMenuState extends MusicBeatState
 		
 		if (!selectedSomethin)
 		{
+			for (i in 0...menuItems.length)
+			{
+				var item = menuItems.members[i];
+				if (i == curSelected)
+				{
+					if (item.scale.x < 1.1)
+					{
+						if (hoverTweens[i] != null) hoverTweens[i].cancel();
+						hoverTweens[i] = FlxTween.tween(item.scale, {x: 1.1, y: 1.1}, 0.3, {ease: FlxEase.quartOut});
+					}
+				}
+				else
+				{
+					if (item.scale.x > 0.8)
+					{
+						if (hoverTweens[i] != null) hoverTweens[i].cancel();
+						hoverTweens[i] = FlxTween.tween(item.scale, {x: 0.8, y: 0.8}, 0.3, {ease: FlxEase.quartOut});
+					}
+				}
+			}
+			
 			if (controls.UI_UP_P)
 				changeItem(-1);
 			if (controls.UI_DOWN_P)
@@ -141,38 +296,7 @@ class MainMenuState extends MusicBeatState
 			{
 				FlxG.sound.play(Paths.sound('confirmMenu'));
 				selectedSomethin = true;
-				
-				switch (optionShit[curSelected])
-				{
-					case 'story_mode':
-						MusicBeatState.switchState(new StoryMenuState());
-					case 'freeplay':
-						MusicBeatState.switchState(new FreeplayState());
-					case 'credits':
-						MusicBeatState.switchState(new CreditsState());
-					case 'options':
-						MusicBeatState.switchState(new OptionsState());
-						OptionsState.onPlayState = false;
-						if (PlayState.SONG != null)
-						{
-							PlayState.SONG.arrowSkin = null;
-							PlayState.SONG.splashSkin = null;
-							PlayState.stageUI = 'normal';
-						}
-				}
-				
-				for (i in 0...menuItems.members.length)
-				{
-					if (i == curSelected)
-						continue;
-					FlxTween.tween(menuItems.members[i], {alpha: 0}, 0.4, {
-						ease: FlxEase.quadOut,
-						onComplete: function(twn:FlxTween)
-						{
-							menuItems.members[i].kill();
-						}
-					});
-				}
+				startTransition();
 			}
 			else if (controls.justPressed('debug_1') || touchPad.buttonE.justPressed)
 			{
@@ -184,38 +308,7 @@ class MainMenuState extends MusicBeatState
 			{
 				FlxG.sound.play(Paths.sound('confirmMenu'));
 				selectedSomethin = true;
-				
-				switch (optionShit[curSelected])
-				{
-					case 'story_mode':
-						MusicBeatState.switchState(new StoryMenuState());
-					case 'freeplay':
-						MusicBeatState.switchState(new FreeplayState());
-					case 'credits':
-						MusicBeatState.switchState(new CreditsState());
-					case 'options':
-						MusicBeatState.switchState(new OptionsState());
-						OptionsState.onPlayState = false;
-						if (PlayState.SONG != null)
-						{
-							PlayState.SONG.arrowSkin = null;
-							PlayState.SONG.splashSkin = null;
-							PlayState.stageUI = 'normal';
-						}
-				}
-				
-				for (i in 0...menuItems.members.length)
-				{
-					if (i == curSelected)
-						continue;
-					FlxTween.tween(menuItems.members[i], {alpha: 0}, 0.4, {
-						ease: FlxEase.quadOut,
-						onComplete: function(twn:FlxTween)
-						{
-							menuItems.members[i].kill();
-						}
-					});
-				}
+				startTransition();
 			}
 			else if (controls.justPressed('debug_1'))
 			{
@@ -227,21 +320,70 @@ class MainMenuState extends MusicBeatState
 		super.update(elapsed);
 	}
 	
+	function startTransition()
+	{
+		var selectedItem = menuItems.members[curSelected];
+		FlxTween.tween(selectedItem.scale, {x: 1.5, y: 1.5}, 0.4, {ease: FlxEase.quartOut});
+		FlxTween.tween(selectedItem, {alpha: 0}, 0.5, {ease: FlxEase.quartIn, startDelay: 0.2});
+		
+		for (i in 0...menuItems.length)
+		{
+			if (i == curSelected) continue;
+			FlxTween.tween(menuItems.members[i], {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
+		}
+		
+		for (char in sideCharacters)
+		{
+			if (char != null)
+			{
+				FlxTween.tween(char, {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
+			}
+		}
+		
+		new FlxTimer().start(0.5, function(tmr:FlxTimer) {
+			FlxTween.tween(blackBars, {alpha: 1}, 0.3, {
+				ease: FlxEase.quartIn,
+				onComplete: function(twn:FlxTween) {
+					switch (optionShit[curSelected])
+					{
+						case 'story_mode':
+							MusicBeatState.switchState(new StoryMenuState());
+						case 'freeplay':
+							MusicBeatState.switchState(new FreeplayState());
+						case 'credits':
+							MusicBeatState.switchState(new CreditsState());
+						case 'options':
+							MusicBeatState.switchState(new OptionsState());
+							OptionsState.onPlayState = false;
+							if (PlayState.SONG != null)
+							{
+								PlayState.SONG.arrowSkin = null;
+								PlayState.SONG.splashSkin = null;
+								PlayState.stageUI = 'normal';
+							}
+					}
+				}
+			});
+		});
+	}
+	
 	function changeItem(huh:Int = 0)
 	{
 		FlxG.sound.play(Paths.sound('scrollMenu'));
-		menuItems.members[curSelected].animation.play('idle');
-		menuItems.members[curSelected].updateHitbox();
-		menuItems.members[curSelected].screenCenter(X);
+		
+		var oldItem = menuItems.members[curSelected];
+		oldItem.animation.play('idle');
+		
 		curSelected += huh;
-		if (curSelected >= menuItems.length)
-			curSelected = 0;
-		if (curSelected < 0)
-			curSelected = menuItems.length - 1;
-		menuItems.members[curSelected].animation.play('selected');
-		menuItems.members[curSelected].centerOffsets();
-		menuItems.members[curSelected].screenCenter(X);
-		camFollow.setPosition(menuItems.members[curSelected].getGraphicMidpoint().x,
-			menuItems.members[curSelected].getGraphicMidpoint().y - (menuItems.length > 4 ? menuItems.length * 8 : 0));
+		if (curSelected >= menuItems.length) curSelected = 0;
+		if (curSelected < 0) curSelected = menuItems.length - 1;
+		
+		var newItem = menuItems.members[curSelected];
+		newItem.animation.play('selected');
+		newItem.centerOffsets();
+		newItem.screenCenter(X);
+		
+		camFollow.setPosition(newItem.getGraphicMidpoint().x,
+			newItem.getGraphicMidpoint().y - (menuItems.length > 4 ? menuItems.length * 8 : 0));
 	}
 }
