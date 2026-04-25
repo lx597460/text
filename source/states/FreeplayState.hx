@@ -1,6 +1,6 @@
-package states;
+package states;   包;
 
-import backend.WeekData;
+import backend.WeekData;   进口backend.WeekData;
 import backend.Highscore;
 import backend.Song;
 
@@ -248,6 +248,7 @@ class FreeplayState extends MusicBeatState
 		if (!player.playingMusic && !zoomCamera)
 		{
 			scoreText.text = 'PERSONAL BEST: ' + lerpScore + ' (' + ratingSplit.join('.') + '%)';
+			positionHighscore();
 			
 			if(songs.length > 1)
 			{
@@ -591,6 +592,7 @@ class FreeplayState extends MusicBeatState
 		lastDifficultyName = Difficulty.getString(curDifficulty);
 		diffText.text = "";
 
+		positionHighscore();
 		missingText.visible = false;
 		missingTextBG.visible = false;
 	}
@@ -660,6 +662,12 @@ class FreeplayState extends MusicBeatState
 	inline private function _updateSongLastDifficulty()
 	{
 		songs[curSelected].lastDifficulty = Difficulty.getString(curDifficulty);
+	}
+
+	private function positionHighscore() {
+		scoreText.x = FlxG.width - scoreText.width - 6;
+		scoreBG.scale.x = FlxG.width - scoreText.x + 6;
+		scoreBG.x = FlxG.width - (scoreBG.scale.x / 2);
 	}
 
 	var _drawDistance:Int = 4;
