@@ -49,6 +49,11 @@ class FreeplayState extends MusicBeatState
 	var bottomBG:FlxSprite;
 
 	var player:MusicPlayer;
+	
+	var blackBarsLeft:FlxSprite;
+	var blackBarsRight:FlxSprite;
+	var zoomCamera:Bool = false;
+	var zoomAmount:Float = 1;
 
 	override function create()
 	{
@@ -96,7 +101,7 @@ class FreeplayState extends MusicBeatState
 
 		for (i in 0...songs.length)
 		{
-			var songText:Alphabet = new Alphabet(90, 320, songs[i].songName, true);
+			var songText:Alphabet = new Alphabet(0, 0, songs[i].songName, true);
 			songText.targetY = i;
 			grpSongs.add(songText);
 
@@ -115,18 +120,16 @@ class FreeplayState extends MusicBeatState
 		}
 		WeekData.setDirectoryFromWeek();
 
-		scoreText = new FlxText(FlxG.width * 0.7, 5, 0, "", 32);
-		scoreText.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, RIGHT);
+		scoreText = new FlxText(0, 10, FlxG.width, "", 32);
+		scoreText.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, CENTER);
 
-		scoreBG = new FlxSprite(scoreText.x - 6, 0).makeGraphic(1, 66, 0xFF000000);
+		scoreBG = new FlxSprite(0, 0).makeGraphic(FlxG.width, 50, 0xFF000000);
 		scoreBG.alpha = 0.6;
 		add(scoreBG);
-
-		diffText = new FlxText(scoreText.x, scoreText.y + 36, 0, "", 24);
-		diffText.font = scoreText.font;
-		add(diffText);
-
 		add(scoreText);
+
+		diffText = new FlxText(0, 0, 0, "", 24);
+		diffText.visible = false;
 
 		missingTextBG = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		missingTextBG.alpha = 0.6;
@@ -150,13 +153,7 @@ class FreeplayState extends MusicBeatState
 		bottomBG.alpha = 0.6;
 		add(bottomBG);
 
-        var leText:String;
-
-        if (controls.mobileC) {
-			leText = "Press X to listen to the Song / Press Y to Reset your Score and Accuracy.";
-        } else {
-			leText = "Press SPACE to listen to the Song / Press RESET to Reset your Score and Accuracy.";
-        }
+        var leText:String = "Press SPACE to listen / Press RESET to reset score";
 		
 		bottomString = leText;
 		var size:Int = 16;
@@ -167,6 +164,13 @@ class FreeplayState extends MusicBeatState
 		
 		player = new MusicPlayer(this);
 		add(player);
+		
+		blackBarsLeft = new FlxSprite(-FlxG.width, 0).makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+		blackBarsRight = new FlxSprite(FlxG.width, 0).makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+		blackBarsLeft.alpha = 0;
+		blackBarsRight.alpha = 0;
+		add(blackBarsLeft);
+		add(blackBarsRight);
 		
 		changeSelection();
 		updateTexts();
@@ -205,6 +209,13 @@ class FreeplayState extends MusicBeatState
 	
 	override function update(elapsed:Float)
 	{
+		if (zoomCamera)
+		{
+			zoomAmount += elapsed * 2;
+			FlxG.camera.zoom = zoomAmount;
+			if (zoomAmount >= 2) zoomAmount = 2;
+		}
+		
 		if (FlxG.sound.music.volume < 0.7)
 		{
 			FlxG.sound.music.volume += 0.5 * FlxG.elapsed;
@@ -234,10 +245,9 @@ class FreeplayState extends MusicBeatState
 		if(FlxG.keys.pressed.SHIFT && !player.playingMusic) shiftMult = 3;
 		#end
 
-		if (!player.playingMusic)
+		if (!player.playingMusic && !zoomCamera)
 		{
 			scoreText.text = 'PERSONAL BEST: ' + lerpScore + ' (' + ratingSplit.join('.') + '%)';
-			positionHighscore();
 			
 			if(songs.length > 1)
 			{
@@ -283,7 +293,7 @@ class FreeplayState extends MusicBeatState
 			}
 		}
 
-		if (controls.BACK)
+		if (controls.BACK && !zoomCamera)
 		{
 			if (player.playingMusic)
 			{
@@ -310,7 +320,7 @@ class FreeplayState extends MusicBeatState
 		}
 
 		#if mobile
-		if((FlxG.keys.justPressed.CONTROL || touchPad.buttonC.justPressed) && !player.playingMusic)
+		if((FlxG.keys.justPressed.CONTROL || touchPad.buttonC.justPressed) && !player.playingMusic && !zoomCamera)
 		{
 			persistentUpdate = false;
 			openSubState(new GameplayChangersSubstate());
@@ -318,7 +328,7 @@ class FreeplayState extends MusicBeatState
 		}
 		else if(FlxG.keys.justPressed.SPACE || touchPad.buttonX.justPressed)
 		{
-			if(instPlaying != curSelected && !player.playingMusic)
+			if(instPlaying != curSelected && !player.playingMusic && !zoomCamera)
 			{
 				destroyFreeplayVocals();
 				FlxG.sound.music.volume = 0;
@@ -357,7 +367,7 @@ class FreeplayState extends MusicBeatState
 				player.pauseOrResume(player.paused);
 			}
 		}
-		else if (controls.ACCEPT && !player.playingMusic)
+		else if (controls.ACCEPT && !player.playingMusic && !zoomCamera)
 		{
 			FlxG.sound.play(Paths.sound('confirmMenu'));
 			
@@ -396,7 +406,7 @@ class FreeplayState extends MusicBeatState
 				return;
 			}
 		}
-		else if((controls.RESET || touchPad.buttonY.justPressed) && !player.playingMusic)
+		else if((controls.RESET || touchPad.buttonY.justPressed) && !player.playingMusic && !zoomCamera)
 		{
 			persistentUpdate = false;
 			openSubState(new ResetScoreSubState(songs[curSelected].songName, curDifficulty, songs[curSelected].songCharacter));
@@ -404,14 +414,14 @@ class FreeplayState extends MusicBeatState
 			FlxG.sound.play(Paths.sound('scrollMenu'));
 		}
 		#else
-		if((FlxG.keys.justPressed.CONTROL) && !player.playingMusic)
+		if((FlxG.keys.justPressed.CONTROL) && !player.playingMusic && !zoomCamera)
 		{
 			persistentUpdate = false;
 			openSubState(new GameplayChangersSubstate());
 		}
 		else if(FlxG.keys.justPressed.SPACE)
 		{
-			if(instPlaying != curSelected && !player.playingMusic)
+			if(instPlaying != curSelected && !player.playingMusic && !zoomCamera)
 			{
 				destroyFreeplayVocals();
 				FlxG.sound.music.volume = 0;
@@ -450,7 +460,7 @@ class FreeplayState extends MusicBeatState
 				player.pauseOrResume(player.paused);
 			}
 		}
-		else if (controls.ACCEPT && !player.playingMusic)
+		else if (controls.ACCEPT && !player.playingMusic && !zoomCamera)
 		{
 			FlxG.sound.play(Paths.sound('confirmMenu'));
 			
@@ -489,7 +499,7 @@ class FreeplayState extends MusicBeatState
 				return;
 			}
 		}
-		else if((controls.RESET) && !player.playingMusic)
+		else if((controls.RESET) && !player.playingMusic && !zoomCamera)
 		{
 			persistentUpdate = false;
 			openSubState(new ResetScoreSubState(songs[curSelected].songName, curDifficulty, songs[curSelected].songCharacter));
@@ -503,19 +513,25 @@ class FreeplayState extends MusicBeatState
 
 	function startTransitionToGame()
 	{
-		var whiteScreen:FlxSprite = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.WHITE);
-		whiteScreen.alpha = 0;
-		whiteScreen.scrollFactor.set();
-		add(whiteScreen);
+		var centerY:Float = FlxG.height / 2;
 		
 		for (item in grpSongs.members)
 		{
 			if (item != null && item.visible && item.exists)
 			{
-				FlxTween.tween(item, {alpha: 0}, 0.4, {
-					ease: FlxEase.quartOut,
-					startDelay: 0.1
-				});
+				if (item.targetY < curSelected)
+				{
+					FlxTween.tween(item, {y: item.y - 150, alpha: 0}, 0.5, {ease: FlxEase.quartIn});
+				}
+				else if (item.targetY > curSelected)
+				{
+					FlxTween.tween(item, {y: item.y + 150, alpha: 0}, 0.5, {ease: FlxEase.quartIn});
+				}
+				else
+				{
+					FlxTween.tween(item.scale, {x: 1.2, y: 1.2}, 0.3, {ease: FlxEase.quartOut});
+					FlxTween.tween(item, {alpha: 0}, 0.5, {ease: FlxEase.quartIn, startDelay: 0.2});
+				}
 			}
 		}
 		
@@ -527,69 +543,29 @@ class FreeplayState extends MusicBeatState
 			}
 		}
 		
-		if (scoreText != null && scoreText.exists) FlxTween.tween(scoreText, {alpha: 0}, 0.3);
-		if (diffText != null && diffText.exists) FlxTween.tween(diffText, {alpha: 0}, 0.3);
-		if (scoreBG != null && scoreBG.exists) FlxTween.tween(scoreBG, {alpha: 0}, 0.3);
-		if (bottomText != null && bottomText.exists) FlxTween.tween(bottomText, {alpha: 0}, 0.3);
-		if (bottomBG != null && bottomBG.exists) FlxTween.tween(bottomBG, {alpha: 0}, 0.3);
+		FlxTween.tween(scoreText, {alpha: 0}, 0.3);
+		FlxTween.tween(scoreBG, {alpha: 0}, 0.3);
+		FlxTween.tween(bottomText, {alpha: 0}, 0.3);
+		FlxTween.tween(bottomBG, {alpha: 0}, 0.3);
 		
-		var selectedItem:Alphabet = grpSongs.members[curSelected];
-		if (selectedItem != null && selectedItem.exists)
-		{
-			FlxTween.tween(selectedItem, {alpha: 0}, 0.5, {
-				ease: FlxEase.quartIn,
-				startDelay: 0.2
-			});
-		}
+		FlxTween.tween(blackBarsLeft, {x: 0, alpha: 1}, 0.5, {ease: FlxEase.quartOut});
+		FlxTween.tween(blackBarsRight, {x: FlxG.width - blackBarsRight.width, alpha: 1}, 0.5, {ease: FlxEase.quartOut});
 		
-		var selectedIcon:HealthIcon = iconArray[curSelected];
-		if (selectedIcon != null && selectedIcon.exists)
-		{
-			FlxTween.tween(selectedIcon, {alpha: 0}, 0.5, {
-				ease: FlxEase.quartIn,
-				startDelay: 0.2
-			});
-		}
+		zoomCamera = true;
+		FlxG.camera.zoom = 1;
 		
-		if (bg != null && bg.exists)
-		{
-			FlxTween.tween(bg, {alpha: 0}, 0.6, {
-				ease: FlxEase.quartIn,
-				onComplete: function(twn:FlxTween) {
-					LoadingState.loadAndSwitchState(new PlayState());
-					
-					FlxG.sound.music.volume = 0;
-					destroyFreeplayVocals();
-					#if (MODS_ALLOWED && DISCORD_ALLOWED)
-					DiscordClient.loadModRPC();
-					#end
-				}
-			});
-		}
-		else
-		{
-			LoadingState.loadAndSwitchState(new PlayState());
-			FlxG.sound.music.volume = 0;
-			destroyFreeplayVocals();
-			#if (MODS_ALLOWED && DISCORD_ALLOWED)
-			DiscordClient.loadModRPC();
-			#end
-		}
-		
-		if (whiteScreen != null)
-		{
-			FlxTween.tween(whiteScreen, {alpha: 0.3}, 0.2, {
-				ease: FlxEase.quartOut,
-				onComplete: function(twn:FlxTween) {
-					if (whiteScreen != null && whiteScreen.exists)
-					{
-						FlxTween.tween(whiteScreen, {alpha: 0}, 0.3, {
-							ease: FlxEase.quartIn
-						});
-					}
-				}
-			});
-		}
+		FlxTween.tween(bg, {alpha: 0}, 0.6, {
+			ease: FlxEase.quartIn,
+			onComplete: function(twn:FlxTween) {
+				LoadingState.loadAndSwitchState(new PlayState());
+				FlxG.sound.music.volume = 0;
+				destroyFreeplayVocals();
+				FlxG.camera.zoom = 1;
+				#if (MODS_ALLOWED && DISCORD_ALLOWED)
+				DiscordClient.loadModRPC();
+				#end
+			}
+		});
 	}
 
 	public static function destroyFreeplayVocals() {
@@ -615,7 +591,6 @@ class FreeplayState extends MusicBeatState
 		lastDifficultyName = Difficulty.getString(curDifficulty);
 		diffText.text = "";
 
-		positionHighscore();
 		missingText.visible = false;
 		missingTextBG.visible = false;
 	}
@@ -649,8 +624,6 @@ class FreeplayState extends MusicBeatState
 			});
 		}
 
-		var bullShit:Int = 0;
-
 		for (i in 0...iconArray.length)
 		{
 			iconArray[i].alpha = 0.6;
@@ -660,7 +633,6 @@ class FreeplayState extends MusicBeatState
 
 		for (item in grpSongs.members)
 		{
-			bullShit++;
 			item.alpha = 0.6;
 			if (item.targetY == curSelected)
 				item.alpha = 1;
@@ -690,14 +662,6 @@ class FreeplayState extends MusicBeatState
 		songs[curSelected].lastDifficulty = Difficulty.getString(curDifficulty);
 	}
 
-	private function positionHighscore() {
-		scoreText.x = FlxG.width - scoreText.width - 6;
-		scoreBG.scale.x = FlxG.width - scoreText.x + 6;
-		scoreBG.x = FlxG.width - (scoreBG.scale.x / 2);
-		diffText.x = Std.int(scoreBG.x + (scoreBG.width / 2));
-		diffText.x -= diffText.width / 2;
-	}
-
 	var _drawDistance:Int = 4;
 	var _lastVisibles:Array<Int> = [];
 	public function updateTexts(elapsed:Float = 0.0)
@@ -710,17 +674,20 @@ class FreeplayState extends MusicBeatState
 		}
 		_lastVisibles = [];
 
+		var centerY:Float = FlxG.height / 2;
 		var min:Int = Math.round(Math.max(0, Math.min(songs.length, lerpSelected - _drawDistance)));
 		var max:Int = Math.round(Math.max(0, Math.min(songs.length, lerpSelected + _drawDistance)));
 		for (i in min...max)
 		{
 			var item:Alphabet = grpSongs.members[i];
 			item.visible = item.active = true;
-			item.x = ((item.targetY - lerpSelected) * item.distancePerItem.x) + item.startPosition.x;
-			item.y = ((item.targetY - lerpSelected) * 1.3 * item.distancePerItem.y) + item.startPosition.y;
-
+			item.x = FlxG.width / 2 - item.width / 2;
+			item.y = centerY + ((item.targetY - lerpSelected) * 80);
+			
 			var icon:HealthIcon = iconArray[i];
 			icon.visible = icon.active = true;
+			icon.x = item.x + item.width / 2 - icon.width / 2;
+			icon.y = item.y + 60;
 			_lastVisibles.push(i);
 		}
 	}
