@@ -8,7 +8,6 @@ import options.OptionsState;
 import flixel.tweens.FlxEase;
 import flixel.tweens.FlxTween;
 import flixel.util.FlxTimer;
-import haxe.Json;
 
 class MainMenuState extends MusicBeatState
 {
@@ -26,8 +25,6 @@ class MainMenuState extends MusicBeatState
 	var bg:FlxSprite;
 	var camFollow:FlxObject;
 	var blackBars:FlxSprite;
-	
-	var sideCharacters:Array<FlxSprite> = [];
 	
 	override function create()
 	{
@@ -63,7 +60,7 @@ class MainMenuState extends MusicBeatState
 			var offset:Float = 108 - (Math.max(optionShit.length, 4) - 4) * 80;
 			var menuItem:FlxSprite = new FlxSprite(0, (i * 140) + offset);
 			menuItem.antialiasing = ClientPrefs.data.antialiasing;
-			menuItem.frames = Paths.getSparrowAtlas('mainmenu/menu_' + optionShit[i]);
+			menuItem.frames = Paths.getSparrowAtlas('mainmenu/menu_' + optionShit[i]);menuItem.frames =路径。getSparrowAtlas (' mainmenu / menu_ ' optionShit[我]);
 			menuItem.animation.addByPrefix('idle', optionShit[i] + " basic", 24);
 			menuItem.animation.addByPrefix('selected', optionShit[i] + " white", 24);
 			menuItem.animation.play('idle');
@@ -75,7 +72,7 @@ class MainMenuState extends MusicBeatState
 			menuItem.screenCenter(X);
 		}
 		
-		var psychVer:FlxText = new FlxText(12, FlxG.height - 44, 0, "Psych Engine v" + psychEngineVersion, 12);
+		var psychVer:FlxText = new FlxText(12, FlxG.height - 44, 0, "Psych Engine v" + psychEngineVersion, 12);var psychVer:FlxText = new FlxText(12, FlxG。height - 44,0, "Psych Engine " psychEngineVersion, 12)；
 		psychVer.scrollFactor.set();
 		psychVer.setFormat("VCR OSD Mono", 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		add(psychVer);
@@ -84,8 +81,6 @@ class MainMenuState extends MusicBeatState
 		fnfVer.scrollFactor.set();
 		fnfVer.setFormat("VCR OSD Mono", 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		add(fnfVer);
-		
-		loadSideCharacters();
 		
 		blackBars = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		blackBars.alpha = 0;
@@ -101,7 +96,7 @@ class MainMenuState extends MusicBeatState
 		#if MODS_ALLOWED
 		Achievements.reloadList();
 		#end
-		#end
+		#end   #结束
 		
 		#if mobile
 		addTouchPad("UP_DOWN", "A_B_E");
@@ -109,140 +104,6 @@ class MainMenuState extends MusicBeatState
 		
 		super.create();
 		FlxG.camera.follow(camFollow, null, 9);
-	}
-	
-	function loadSideCharacters()
-	{
-		var rawJson:String = null;
-		
-		try
-		{
-			if (FileSystem.exists(Paths.getPath('images/main_characters.json', TEXT)))
-			{
-				rawJson = File.getContent(Paths.getPath('images/main_characters.json', TEXT));
-			}
-		}
-		catch(e:Dynamic)
-		{
-			trace('No main_characters.json found, skipping side characters');
-		}
-		
-		if (rawJson == null)
-		{
-			try
-			{
-				if (Paths.fileExists('images/main_characters.json', TEXT))
-				{
-					rawJson = Paths.getContent('images/main_characters.json');
-				}
-			}
-			catch(e:Dynamic)
-			{
-				trace('No main_characters.json found in images folder');
-			}
-		}
-		
-		if (rawJson != null && rawJson.length > 0)
-		{
-			try
-			{
-				var config:Dynamic = Json.parse(rawJson);
-				for (side in ['left', 'right'])
-				{
-					if (Reflect.hasField(config, side))
-					{
-						var sideConfig = Reflect.field(config, side);
-						var characters:Array<Dynamic> = sideConfig.characters;
-						if (characters != null && characters.length > 0)
-						{
-							var randomIndex:Int = FlxG.random.int(0, characters.length - 1);
-							var selected = characters[randomIndex];
-							createSideCharacter(side, selected, sideConfig);
-						}
-					}
-				}
-			}
-			catch(e:Dynamic)
-			{
-				trace('Error parsing main_characters.json: ' + e);
-			}
-		}
-	}
-	
-	function createSideCharacter(side:String, charData:Dynamic, config:Dynamic)
-	{
-		var path:String = charData.path;
-		var hasAnimation:Bool = charData.hasAnimation == true;
-		var offsetX:Float = config.offsetX != null ? config.offsetX : 0;
-		var offsetY:Float = config.offsetY != null ? config.offsetY : 0;
-		var scaleX:Float = config.scaleX != null ? config.scaleX : 1;
-		var scaleY:Float = config.scaleY != null ? config.scaleY : 1;
-		var fps:Int = config.fps != null ? config.fps : 24;
-		var animationName:String = charData.animationName != null ? charData.animationName : 'idle';
-		
-		var sprite:FlxSprite = new FlxSprite();
-		sprite.antialiasing = ClientPrefs.data.antialiasing;
-		
-		try
-		{
-			if (hasAnimation)
-			{
-				sprite.frames = Paths.getSparrowAtlas(path);
-				sprite.animation.addByPrefix('idle', animationName, fps);
-				sprite.animation.play('idle');
-			}
-			else
-			{
-				sprite.loadGraphic(Paths.image(path));
-			}
-		}
-		catch(e:Dynamic)
-		{
-			trace('Failed to load side character: ' + path);
-			return;
-		}
-		
-		sprite.scale.set(scaleX, scaleY);
-		sprite.updateHitbox();
-		
-		var startX:Float = 0;
-		var endX:Float = 0;
-		
-		if (side == 'left')
-		{
-			startX = -sprite.width - offsetX;
-			endX = offsetX;
-		}
-		else
-		{
-			startX = FlxG.width + sprite.width + offsetX;
-			endX = FlxG.width - sprite.width - offsetX;
-		}
-		
-		sprite.x = startX;
-		sprite.y = offsetY;
-		
-		add(sprite);
-		
-		var delay:Float = config.delay != null ? config.delay : 0;
-		var duration:Float = config.duration != null ? config.duration : 0.8;
-		
-		new FlxTimer().start(delay, function(tmr:FlxTimer) {
-			FlxTween.tween(sprite, {x: endX}, duration, {
-				ease: FlxEase.backOut,
-				onComplete: function(twn:FlxTween) {
-					if (config.loop != null && config.loop == true)
-					{
-						new FlxTimer().start(config.loopDelay != null ? config.loopDelay : 3, function(loopTimer:FlxTimer) {
-							sprite.x = startX;
-							FlxTween.tween(sprite, {x: endX}, duration, {ease: FlxEase.backOut});
-						});
-					}
-				}
-			});
-		});
-		
-		sideCharacters.push(sprite);
 	}
 	
 	var selectedSomethin:Bool = false;
@@ -273,93 +134,85 @@ class MainMenuState extends MusicBeatState
 				else
 				{
 					if (item.scale.x > 0.8)
-					{
-						if (hoverTweens[i] != null) hoverTweens[i].cancel();
-						hoverTweens[i] = FlxTween.tween(item.scale, {x: 0.8, y: 0.8}, 0.3, {ease: FlxEase.quartOut});
+					{   包;   包;   包;
+						if   如果   如果 (hoverTweens[i] != null   零   零) hoverTweens[i].cancel   取消();
+						hoverTweens[i] = FlxTween.tween(item.scale   规模, {x: 0.8, y: 0.8}, 0.3, {ease: FlxEase.quartOut});
 					}
 				}
 			}
 			
-			if (controls.UI_UP_P)
+			if   如果 (controls.UI_UP_P)
 				changeItem(-1);
-			if (controls.UI_DOWN_P)
+			if   如果 (controls.UI_DOWN_P)
 				changeItem(1);
-			if (controls.BACK)
+			if   如果 (controls.BACK)
 			{
-				selectedSomethin = true;
-				FlxG.sound.play(Paths.sound('cancelMenu'));
-				MusicBeatState.switchState(new TitleState());
+				selectedSomethin = true   真正的;   selectedSomethin = true   真正的   真正的；
+				FlxG.sound   声音.play(Paths.sound   声音('cancelMenu'));
+				MusicBeatState.switchState(new   新 TitleState());
 			}
 			
 			#if mobile
-			if (controls.ACCEPT)
+			if   如果 (controls.ACCEPT)   如果(controls.ACCEPT)
 			{
-				FlxG.sound.play(Paths.sound('confirmMenu'));
-				selectedSomethin = true;
+				FlxG.sound   声音.play(Paths.sound   声音('confirmMenu'));FlxG.sound   声音   声音.play (Paths.sound   声音   声音 (confirmMenu”));
+				selectedSomethin = true   真正的;   selectedSomethin = true   真正的   真正的；
 				startTransition();
 			}
-			else if (controls.justPressed('debug_1') || touchPad.buttonE.justPressed)
+			else   其他 if   如果 (controls.justPressed('debug_1') || touchPad.buttonE.justPressed)否则if（控制）。touchpad .button .justPressed （'debug_1'）
 			{
-				selectedSomethin = true;
-				MusicBeatState.switchState(new MasterEditorMenu());
+				selectedSomethin = true   真正的;   selectedSomethin = true   真正的   真正的；
+				MusicBeatState.switchState(new   新 MasterEditorMenu());MusicBeatState。switchState (new   新   新 MasterEditorMenu ());
 			}
-			#else
-			if (controls.ACCEPT)
+			#else   其他#
+			if   如果 (controls.ACCEPT)   如果(controls.ACCEPT)
 			{
-				FlxG.sound.play(Paths.sound('confirmMenu'));
-				selectedSomethin = true;
+				FlxG.sound   声音.play(Paths.sound   声音('confirmMenu'));FlxG.sound   声音   声音.play (Paths.sound   声音   声音 (confirmMenu”));
+				selectedSomethin = true   真正的;   selectedSomethin = true   真正的   真正的；
 				startTransition();
 			}
-			else if (controls.justPressed('debug_1'))
+			else   其他 if   如果 (controls.justPressed('debug_1'))else   其他   其他 if   如果   如果 （controls.justPressed('debug_1')）
 			{
-				selectedSomethin = true;
-				MusicBeatState.switchState(new MasterEditorMenu());
+				selectedSomethin = true   真正的;   selectedSomethin = true   真正的   真正的；
+				MusicBeatState.switchState(new   新 MasterEditorMenu());MusicBeatState。switchState (new   新   新 MasterEditorMenu ());
 			}
-			#end
+			#end   #结束
 		}
-		super.update(elapsed);
+		super.update   更新(elapsed);   super.update   更新   更新(运行);
 	}
 	
-	function startTransition()
+	function   函数 startTransition()startTransition()函数
 	{
-		var selectedItem = menuItems.members[curSelected];
-		FlxTween.tween(selectedItem.scale, {x: 1.5, y: 1.5}, 0.4, {ease: FlxEase.quartOut});
-		FlxTween.tween(selectedItem, {alpha: 0}, 0.5, {ease: FlxEase.quartIn, startDelay: 0.2});
+		var selectedItem = menuItems.members   成员[curSelected];
+		FlxTween.tween(selectedItem.scale   规模, {x: 1.5, y: 1.5}, 0.4, {ease: FlxEase.quartOut});FlxTween.tween(设置selectedItem。规模,{x: 1.5, y: 1.5}, 0.4,{缓解:FlxEase.quartOut});
+		FlxTween.tween(selectedItem, {alpha   α: 0}, 0.5, {ease: FlxEase.quartIn, startDelay: 0.2});FlxTween。tween(selectedItem, {alpha   α   α: 0}, 0.5, {ease: FlxEase；quartIn, startDelay: 0.2})；
 		
-		for (i in 0...menuItems.length)
+		for   为 (i   我 in   在 0...menuItems.length)for   为   为 （i in   在   在 0…menuItems.length）
 		{
-			if (i == curSelected) continue;
-			FlxTween.tween(menuItems.members[i], {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
+			if   如果 (i   我   我 == curSelected) continue   继续;if   如果   如果 （i == curSelected）继续；
+			FlxTween.tween(menuItems.members   成员[i], {alpha: 0}, 0.3, {ease: FlxEase.quadOut});FlxTween.tween(菜单项。成员[i]， {alpha: 0}, 0.3, {ease: FlxEase.quadOut})；
 		}
 		
-		for (char in sideCharacters)
-		{
-			if (char != null)
-			{
-				FlxTween.tween(char, {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
-			}
-		}
-		
-		new FlxTimer().start(0.5, function(tmr:FlxTimer) {
-			FlxTween.tween(blackBars, {alpha: 1}, 0.3, {
-				ease: FlxEase.quartIn,
-				onComplete: function(twn:FlxTween) {
-					switch (optionShit[curSelected])
+		new   新 FlxTimer().start(0.5, function   函数(tmr:FlxTimer) {新FlxTimer().start(0.5, function   函数   函数(tmr:FlxTimer) {
+			FlxTween.tween(blackBars, {alpha   α: 1}, 0.3, {FlxTween。tween(blackBars， {alpha: 1}， 0.3， {
+				ease: FlxEase.quartIn,   缓解:FlxEase.quartIn,
+				onComplete: function   函数(twn:FlxTween) {不完整:函数(twn:FlxTween) {
+					switch (optionShit[curSelected])开关(optionShit [curSelected])
 					{
-						case 'story_mode':
-							MusicBeatState.switchState(new StoryMenuState());
-						case 'freeplay':
-							MusicBeatState.switchState(new FreeplayState());
-						case 'credits':
-							MusicBeatState.switchState(new CreditsState());
-						case 'options':
-							MusicBeatState.switchState(new OptionsState());
-							OptionsState.onPlayState = false;
-							if (PlayState.SONG != null)
+						case 'story_mode':   例“story_mode”:
+							MusicBeatState.switchState(new   新 StoryMenuState());MusicBeatState .switchState StoryMenuState()(纽约);
+						case 'freeplay':   例“拘谨”:
+							MusicBeatState.switchState(new   新 FreeplayState());MusicBeatState。switchState(新FreeplayState ());
+						case 'credits':   例“学分”:
+							MusicBeatState.switchState(new   新 CreditsState());MusicBeatState。switchState(新CreditsState ());
+						case 'options':   例“选项”:
+							MusicBeatState.switchState(new   新 OptionsState());MusicBeatState .switchState OptionsState()(纽约);
+							OptionsState.onPlayState = false   假;OptionsState。onPlayState = false   假   假；
+							if   如果 (PlayState.SONG != null   零)如果(PlayState。首歌!= null   零   零)
 							{
-								PlayState.SONG.arrowSkin = null;
-								PlayState.SONG.splashSkin = null;
-								PlayState.stageUI = 'normal';
+								PlayState.SONG.arrowSkin = null   零;PlayState.SONG.arrowSkin = null   零   零；
+								PlayState.SONG.splashSkin = null   零;PlayState.SONG.splashSkin = null   零   零；
+								PlayState.stageUI = 'normal';PlayState。stageUI = 'normal'；
 							}
 					}
 				}
@@ -367,23 +220,23 @@ class MainMenuState extends MusicBeatState
 		});
 	}
 	
-	function changeItem(huh:Int = 0)
+	function   函数 changeItem(huh:Int = 0)函数changeItem（huh:Int = 0）
 	{
-		FlxG.sound.play(Paths.sound('scrollMenu'));
+		FlxG.sound   声音   声音.play(Paths.sound   声音('scrollMenu'));FlxG.sound   声音   声音.play (Paths.sound   声音   声音 (scrollMenu”));
 		
-		var oldItem = menuItems.members[curSelected];
-		oldItem.animation.play('idle');
+		var oldItem = menuItems.members   成员[curSelected];
+		oldItem.animation.play('idle');oldItem.animation.play(“闲置”);
 		
-		curSelected += huh;
-		if (curSelected >= menuItems.length) curSelected = 0;
-		if (curSelected < 0) curSelected = menuItems.length - 1;
+		curSelected += huh;   curSelected = huh；
+		if   如果 (curSelected >= menuItems.length   长度) curSelected = 0;如果（curSelected >= menuItems.）长度)curSelected = 0；
+		if   如果 (curSelected < 0) curSelected = menuItems.length   长度 - 1;如果（curSelected < 0） curSelected =菜单项。长度- 1；
 		
-		var newItem = menuItems.members[curSelected];
-		newItem.animation.play('selected');
+		var newItem = menuItems.members   成员[curSelected];
+		newItem.animation.play('selected');newItem.animation.play(“选择”);
 		newItem.centerOffsets();
 		newItem.screenCenter(X);
 		
-		camFollow.setPosition(newItem.getGraphicMidpoint().x,
-			newItem.getGraphicMidpoint().y - (menuItems.length > 4 ? menuItems.length * 8 : 0));
+		camFollow.setPosition(newItem.getGraphicMidpoint().x,camFollow.setPosition (newItem.getGraphicMidpoint()方式,
+			newItem.getGraphicMidpoint().y - (menuItems.length   长度 > 4 ? menuItems.length * 8 : 0));newItem.getGraphicMidpoint () .y -(菜单项。长度4 ？menuItems .长度* 8:0))；
 	}
 }
